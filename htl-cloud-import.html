@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0c1d17">
+<title>HTL · Cloud-Import</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#0c1d17;color:#eaf9f0}
+*{box-sizing:border-box}body{margin:0}main{max-width:650px;margin:auto;padding:30px 18px 70px}
+h1{font-size:clamp(30px,6vw,44px);letter-spacing:-.05em;margin:8px 0 16px}h2{font-size:18px;margin:0 0 12px}
+p,li{line-height:1.55}.muted{color:#abc1b3;font-size:14px}.eyebrow{letter-spacing:.16em;color:#91e0b4;text-transform:uppercase;font-size:11px;font-weight:800}
+.panel{background:#152a22;border:1px solid #3d604e;border-radius:17px;padding:20px;margin:20px 0}
+label{display:grid;gap:7px;font-size:13px;margin:12px 0}
+input{min-height:45px;padding:10px;border-radius:10px;border:1px solid #527c64;background:#0c1d17;color:#fff;font:inherit;width:100%}
+button{background:#a5e9bc;color:#092017;border:0;border-radius:10px;padding:11px 15px;min-height:44px;font:inherit;font-weight:750;cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}.secondary{background:#294b3c;color:#e0ffeb;border:1px solid #51745d}
+.row{display:flex;flex-wrap:wrap;gap:9px;align-items:center}.notice{padding:13px;background:#204033;border-radius:10px;font-size:13px;line-height:1.55}
+.error{background:#5a3027}a{color:#a6e7c1}[hidden]{display:none!important}td{padding:9px 0;border-bottom:1px solid #3d5b4b}
+table{width:100%;border-collapse:collapse;margin:15px 0}td:last-child{text-align:right;font-weight:750}
+#status,#authStatus,#fileStatus,#cloudStatus{white-space:pre-wrap}
+</style>
+</head>
+<body>
+<main>
+<div class="eyebrow">HTL · Hybrid Training Lab</div>
+<h1>Deine Trainings in die Cloud</h1>
+<p class="muted">Diese separate Importseite verändert weder deine ursprüngliche HTL-App noch die JSON-Datei auf deinem Gerät. Einträge werden nur nach deiner Bestätigung übertragen.</p>
+<section class="panel">
+<h2>1 · HTL-Cloud-Konto</h2>
+<p class="muted">Verwende später auf dem iPhone und Rechner dieselbe E-Mail-Adresse. Dein Passwort bleibt ausschließlich bei der Anmeldung; wir fragen es nicht im Chat ab.</p>
+<div id="authFields">
+<label>E-Mail<input type="email" id="email" autocomplete="email" placeholder="du@beispiel.de"></label>
+<label>Passwort<input type="password" id="password" autocomplete="current-password" minlength="8" placeholder="Mindestens 8 Zeichen"></label>
+<div class="row"><button id="signIn">Anmelden</button><button id="signUp" class="secondary">Konto erstellen</button></div>
+</div>
+<div id="signedIn" hidden><p>Angemeldet als <strong id="userEmail"></strong></p><button id="signOut" class="secondary">Abmelden</button></div>
+<p id="authStatus" class="muted" role="status"></p>
+</section>
+<section class="panel">
+<h2>2 · Backup aus „Dateien“ wählen</h2>
+<p class="muted">Wähle die JSON-Datei, die du in HTL unter „Backup herunterladen“ gesichert hast. Dateien von iPhone und Rechner bitte nacheinander importieren.</p>
+<input id="file" type="file" accept=".json,application/json" disabled>
+<p id="fileStatus" class="muted" role="status">Bitte zuerst anmelden.</p>
+<div id="preview" hidden>
+<table>
+<tr><td>Neue Trainings</td><td id="newCount">–</td></tr>
+<tr><td>Bereits vorhanden</td><td id="duplicateCount">–</td></tr>
+<tr><td>Gleiche ID, andere Daten</td><td id="conflictCount">–</td></tr>
+</table>
+<p class="notice">Nur neue Datensätze werden ergänzt. Bestehende Einträge werden weder geändert noch gelöscht; widersprüchliche Versionen überspringt der Import.</p>
+<button id="upload">Import verbindlich starten</button>
+</div>
+</section>
+<section class="panel">
+<h2>3 · Kontrolle</h2>
+<p class="muted">Du kannst die Datenbank anschließend prüfen und dir jederzeit eine zusätzliche Cloud-Sicherungsdatei herunterladen. Die automatische Synchronisierung der Haupt-App ist davon getrennt.</p>
+<div class="row"><button class="secondary" id="refresh" disabled>Cloud prüfen</button><button class="secondary" id="download" disabled>Cloud-Backup sichern</button></div>
+<p id="cloudStatus" class="muted" role="status"></p>
+</section>
+<p id="status" class="notice" aria-live="polite">Der Import verändert deine alten lokalen Daten nicht.</p>
+<p><a href="htl-preview.html">Zur bisherigen HTL-Version</a></p>
+</main>
+<script>
+(function(){
+"use strict";
+const URL_BASE="https://xdlvcprtswwgmxxxmaia.supabase.co";
+const API_KEY="sb_publishable_iOUHNONggAZKy3W2njntVA_BxnFVHN_";
+const SESSION_KEY="htl-cloud-import-session-v1";
+const $=id=>document.getElementById(id);
+let session=null,selected=[],planned=[];
+const setMessage=(id,msg)=>$(id).textContent=msg;
+function showError(error){setMessage("status","Fehler: "+(error&&error.message?error.message:String(error)))}
+function jsonBody(text){try{return JSON.parse(text)}catch(_){return {message:text.slice(0,250)}}}
+async function request(path,method,body,authenticated){
+  const headers={"apikey":API_KEY,"Content-Type":"application/json"};
+  if(authenticated){
+    if(!session||!session.access_token)throw Error("Bitte zuerst anmelden.");
+    if(Date.now()>=session.expires_at*1000-60000)await refreshSession();
+    headers.Authorization="Bearer "+session.access_token;
+  }
+  const response=await fetch(URL_BASE+path,{method:method||"GET",headers,body:body===undefined?undefined:JSON.stringify(body),cache:"no-store"});
+  const payload=jsonBody(await response.text());
+  if(!response.ok){const err=Error(payload.msg||payload.message||payload.error_description||"Netzwerkfehler ("+response.status+")");err.code=payload.code;err.status=response.status;throw err}
+  return payload;
+}
+function keepSession(data){
+  if(!data||!data.access_token||!data.refresh_token)throw Error("Anmeldung nicht vollständig.");
+  session={access_token:data.access_token,refresh_token:data.refresh_token,expires_at:Math.floor(Date.now()/1000)+(Number(data.expires_in)||3600)};
+  sessionStorage.setItem(SESSION_KEY,JSON.stringify(session));
+}
+async function refreshSession(){
+  if(!session?.refresh_token)throw Error("Bitte erneut anmelden.");
+  const result=await request("/auth/v1/token?grant_type=refresh_token","POST",{refresh_token:session.refresh_token},false);
+  keepSession(result);
+}
+function signedOut(){
+  session=null;sessionStorage.removeItem(SESSION_KEY);selected=[];planned=[];
+  $("authFields").hidden=false;$("signedIn").hidden=true;$("preview").hidden=true;
+  $("file").value="";$("file").disabled=true;$("refresh").disabled=true;$("download").disabled=true;
+  setMessage("fileStatus","Bitte zuerst anmelden.");setMessage("cloudStatus","");
+}
+async function login(){
+  const email=$("email").value.trim(),password=$("password").value;
+  if(!email||!password)throw Error("E-Mail und Passwort eingeben.");
+  const result=await request("/auth/v1/token?grant_type=password","POST",{email,password},false);
+  keepSession(result);
+  await signedIn();
+}
+async function signedIn(){
+  const user=await request("/auth/v1/user","GET",undefined,true);
+  if(!user.id)throw Error("Dein Konto konnte nicht geprüft werden.");
+  $("userEmail").textContent=user.email||"HTL-Konto";
+  $("authFields").hidden=true;$("signedIn").hidden=false;
+  $("file").disabled=false;$("refresh").disabled=false;$("download").disabled=false;
+  setMessage("authStatus","Anmeldung erfolgreich.");
+  await countCloud();
+}
+async function signup(){
+  const email=$("email").value.trim(),password=$("password").value;
+  if(!email||password.length<8)throw Error("E-Mail und ein Passwort mit mindestens 8 Zeichen eingeben.");
+  const data=await request("/auth/v1/signup","POST",{email,password},false);
+  $("password").value="";
+  if(data.access_token){keepSession(data);await signedIn()}
+  else setMessage("authStatus","Bitte bestätige deine E-Mail-Adresse über den Link im Postfach. Öffne danach diese Seite erneut und melde dich an.");
+}
+async function rows(){
+  const all=[];
+  for(let offset=0;offset<6000;offset+=1000){
+    const page=await request("/rest/v1/htl_entries?select=id,entry,deleted,revision&order=id.asc&limit=1000&offset="+offset,"GET",undefined,true);
+    if(!Array.isArray(page))throw Error("Ungültige Datenbankantwort.");
+    all.push(...page);
+    if(page.length<1000)break;
+  }
+  if(all.length>5000)throw Error("Die Cloud enthält zu viele Datensätze für diese Testversion.");
+  return all;
+}
+function fingerprint(e){
+  return JSON.stringify(Object.keys(e).filter(k=>k!=="id"&&k!=="created").sort().map(k=>[k,e[k]]));
+}
+function planImport(existing,incoming){
+  const ids=new Map(),seen=new Set(),add=[];
+  let duplicates=0,conflicts=0;
+  for(const row of existing){
+    const fp=row.deleted||!row.entry?null:fingerprint(row.entry);
+    ids.set(row.id,fp);
+    if(fp)seen.add(fp);
+  }
+  for(const item of incoming){
+    const fp=fingerprint(item);
+    if(ids.has(item.id)){
+      if(ids.get(item.id)===fp)duplicates++;
+      else conflicts++;
+      continue;
+    }
+    if(seen.has(fp)){duplicates++;continue}
+    ids.set(item.id,fp);seen.add(fp);add.push(item);
+  }
+  return {add,duplicates,conflicts};
+}
+function isValid(e){
+  return e&&typeof e==="object"&&!Array.isArray(e)&&typeof e.id==="string"&&e.id.length>0&&e.id.length<=160
+    &&typeof e.date==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(e.date)
+    &&["running","lifting","recovery"].includes(e.type);
+}
+async function countCloud(){
+  const existing=await rows();
+  setMessage("cloudStatus",existing.filter(e=>!e.deleted).length+" gespeicherte Trainings in deinem Cloud-Konto.");
+  return existing;
+}
+async function preview(){
+  $("preview").hidden=true;planned=[];selected=[];
+  const file=$("file").files[0];if(!file)return;
+  if(file.size>5000000)throw Error("Datei zu groß (maximal 5 MB).");
+  const parsed=JSON.parse(await file.text());
+  if(!parsed||parsed.type!=="htl-prototype-backup"||parsed.version!==1||!Array.isArray(parsed.entries)||parsed.entries.length>5000||!parsed.entries.every(isValid))
+    throw Error("Das ist keine gültige HTL-Backupdatei.");
+  selected=parsed.entries;
+  const existing=await rows();
+  const p=planImport(existing,selected);
+  if(existing.length+p.add.length>5000)throw Error("Das Limit von 5.000 Trainings würde überschritten.");
+  planned=p.add;
+  $("newCount").textContent=String(p.add.length);
+  $("duplicateCount").textContent=String(p.duplicates);
+  $("conflictCount").textContent=String(p.conflicts);
+  $("preview").hidden=false;
+  $("upload").disabled=p.add.length===0;
+  setMessage("fileStatus",file.name+" wurde gelesen. Noch nichts hochgeladen.");
+}
+async function upload(){
+  if(!session||!selected.length)throw Error("Bitte zuerst anmelden und ein Backup auswählen.");
+  const current=await rows();
+  const p=planImport(current,selected);
+  if(current.length+p.add.length>5000)throw Error("Das Limit von 5.000 Trainings würde überschritten.");
+  if(!p.add.length){setMessage("status","Keine neuen Einträge mehr vorhanden. Es wurde nichts geändert.");await preview();return}
+  if(!confirm(p.add.length+" neue Trainings in die Cloud übernehmen?\n"+p.duplicates+" Duplikate und "+p.conflicts+" ID-Konflikte werden übersprungen."))return;
+  $("upload").disabled=true;
+  let completed=0,concurrent=0;
+  try{
+    for(const entry of p.add){
+      try{
+        await request("/rest/v1/rpc/htl_write_entry","POST",{p_id:entry.id,p_entry:entry,p_deleted:false,p_expected_revision:null},true);
+        completed++;
+      }catch(err){
+        if(err.code==="40001"||String(err.message).includes("HTL_CONFLICT")){concurrent++;continue}
+        throw err;
+      }
+      setMessage("status",completed+" von "+p.add.length+" Trainings übertragen.");
+    }
+    setMessage("status",completed+" neue Trainings gespeichert. "+(p.duplicates+concurrent)+" Duplikate/Konflikte übersprungen. Bestehende Cloud-Daten wurden nicht überschrieben.");
+  }catch(err){
+    setMessage("status","Import unterbrochen: "+completed+" Trainings wurden übertragen. "+err.message+" Du kannst die Datei später erneut auswählen; bereits importierte Einträge werden erkannt.");
+  }finally{
+    $("upload").disabled=false;
+    await countCloud().catch(e=>setMessage("cloudStatus",e.message));
+    await preview().catch(e=>setMessage("fileStatus",e.message));
+  }
+}
+function saveFile(json,name){
+  const blob=new Blob([JSON.stringify(json,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download=name;document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),15000);
+}
+function bind(id,action){
+  $(id).addEventListener("click",async()=>{
+    $(id).disabled=true;
+    try{await action()}catch(e){showError(e);if(id==="signIn"||id==="signUp")setMessage("authStatus",e.message)}
+    finally{$(id).disabled=false}
+  });
+}
+bind("signIn",login);
+bind("signUp",signup);
+bind("signOut",async()=>{signedOut();setMessage("status","Auf diesem Gerät abgemeldet.")});
+bind("refresh",countCloud);
+bind("upload",upload);
+bind("download",async()=>{
+  const data=await rows();
+  saveFile({type:"htl-prototype-backup",version:1,exported:new Date().toISOString(),entries:data.filter(x=>!x.deleted).map(x=>x.entry)},"HTL-Cloud-Backup-"+new Date().toISOString().slice(0,10)+".json");
+  setMessage("status","Cloud-Sicherung heruntergeladen.");
+});
+$("file").addEventListener("change",async()=>{
+  try{await preview()}catch(e){$("preview").hidden=true;setMessage("fileStatus",e.message)}
+});
+(async()=>{
+  try{
+    const stored=sessionStorage.getItem(SESSION_KEY);
+    if(stored){session=JSON.parse(stored);await signedIn()}
+  }catch(e){signedOut();setMessage("authStatus","Bitte erneut anmelden.")}
+})();
+})();
+</script>
+</body>
+</html>
