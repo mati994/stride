@@ -257,7 +257,7 @@ if(!obj||obj.type!=="htl-prototype-backup"||obj.version!==1||!Array.isArray(obj.
 var plan=prepareImport(entries,obj.entries),number=plan.added.length;
 if(entries.length+number>5000)throw Error("Import nicht möglich: Das Limit von 5.000 Einträgen würde überschritten. Es wurde nichts verändert.");
 if(!number){el("settingsStatus").textContent="Keine neuen Einträge: "+plan.duplicates+" bereits vorhanden, "+plan.conflicts+" ID-Konflikte. Es wurde nichts verändert.";return}
-var summary="HTL-Import prüfen\\n\\nNeue Einträge: "+number+"\\nBereits vorhanden: "+plan.duplicates+"\\nID-Konflikte (werden übersprungen): "+plan.conflicts+"\\n\\n"+number+" neue Einträge hinzufügen? Vorhandene Einträge bleiben unverändert.";
+var summary="HTL-Import prüfen\n\nNeue Einträge: "+number+"\nBereits vorhanden: "+plan.duplicates+"\nID-Konflikte (werden übersprungen): "+plan.conflicts+"\n\n"+number+" neue Einträge hinzufügen? Vorhandene Einträge bleiben unverändert.";
 if(!confirm(summary)){el("settingsStatus").textContent="Import abgebrochen. Deine Daten wurden nicht verändert.";return}
 var old=entries;entries=entries.concat(plan.added);
 if(save()){view();el("settingsStatus").textContent=number+" neue Einträge importiert. "+plan.duplicates+" Duplikate und "+plan.conflicts+" ID-Konflikte übersprungen. Vorhandene Einträge blieben erhalten."}else{entries=old;el("settingsStatus").textContent="Import nicht gespeichert. Vorhandene Daten blieben erhalten."}
