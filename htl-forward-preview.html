@@ -3,9 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#F7F5F1">
+<meta name="theme-color" content="#FAF8F4">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="apple-mobile-web-app-title" content="HTL Forward Test">
 <meta name="description" content="HTL Forward – Human Performance. Dein persönliches Hybrid Training Lab.">
-<title>HTL Forward · Designvorschau</title>
+<title>HTL Forward · Safari-Testversion</title>
 <style>
 :root {
   color-scheme:light;
@@ -173,7 +176,7 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;le
 <h2>Core &amp;<br>Laufstabilität<span class="forward-stop">.</span></h2>
 <p>Laufen, Kraft und Stabilität – klar geplant, nachvollziehbar dokumentiert und bereit für deinen nächsten Trainingsimpuls.</p>
 <div class="forward-feature-meta"><span>◎ Körpergewicht</span><span>◇ 6 Übungen</span><span>◌ Core &amp; Stabilität</span></div></div>
-<div class="forward-feature-actions"><button class="forward-open" data-page="history" type="button" aria-label="Trainingshistorie öffnen">↗</button><small>HISTORIE ANSEHEN</small></div>
+<div class="forward-feature-actions"><button class="forward-open" id="startCoreWorkout" type="button" aria-label="Core und Laufstabilität öffnen">↗</button><small>WORKOUT ÖFFNEN</small></div>
 </section>
 <div class="grid metrics">
 <div class="card metric-card"><div class="metric-top"><span class="metric-label">Laufumfang · 7 Tage</span><span class="iconbox run"><svg fill="none" stroke="currentColor"><use href="#i-run"/></svg></span></div><div><div class="kpi" id="kpiKm">0,0 <small>km</small></div><div class="metric-foot" id="kpiRunCount">0 Läufe</div></div></div>
@@ -301,7 +304,7 @@ function sinceDays(n){var d=new Date();d.setDate(d.getDate()-(n-1));return dateL
 function days7(){return entries.filter(function(e){return e.date>=sinceDays(7)&&e.date<=dateLocal()})}
 function formatEntry(e){var a=[];if(num(e.km)!==null&&e.type==="running")a.push(dec(e.km,2)+" km");if(e.type==="running"){var seconds=durationSeconds(e);if(seconds!==null)a.push(formatDuration(seconds)+" Min. (mm:ss)")}else if(num(e.minutes)!==null)a.push(e.minutes+" Min.");if(num(e.rpe)!==null)a.push((e.type==="recovery"?"RPE (Altwert) ":"RPE ")+e.rpe);if(num(e.sleep)!==null&&e.type==="recovery")a.push(e.sleep+" h Schlaf");if(e.type==="recovery"){if(num(e.sleepQuality)!==null)a.push("Schlafqualität "+e.sleepQuality+"/5");if(num(e.recoveryFeeling)!==null)a.push("Erholung "+e.recoveryFeeling+"/5")}if(e.type==="lifting"&&Array.isArray(e.exercises)&&e.exercises.length)a.push(e.exercises.length+" Übungen");return a.join(" · ")||"Ohne Leistungswerte"}
 function showPage(name){if(!labels[name])return;currentPage=name;document.querySelectorAll(".page").forEach(function(p){p.classList.toggle("active",p.id==="page-"+name)});document.querySelectorAll("[data-page]").forEach(function(b){b.classList.toggle("active",b.dataset.page===name)});el("breadcrumb").textContent=labels[name];window.scrollTo({top:0,behavior:"instant"})}
-function setTheme(theme){var val=theme==="dark"?"dark":"light";document.documentElement.setAttribute("data-theme",val);el("themeText").textContent=val==="dark"?"Light Mode":"Dark Mode";el("themeIcon").querySelector("use").setAttribute("href",val==="dark"?"#i-sun":"#i-moon");document.querySelector('meta[name="theme-color"]').content=val==="dark"?"#0B1220":"#F7F5F1";try{localStorage.setItem(THEMEKEY,val)}catch(e){}}
+function setTheme(theme){var val=theme==="dark"?"dark":"light";document.documentElement.setAttribute("data-theme",val);el("themeText").textContent=val==="dark"?"Light Mode":"Dark Mode";el("themeIcon").querySelector("use").setAttribute("href",val==="dark"?"#i-sun":"#i-moon");document.querySelector('meta[name="theme-color"]').content=val==="dark"?"#0E1126":"#FAF8F4";try{localStorage.setItem(THEMEKEY,val)}catch(e){}}
 function flipTheme(){setTheme(document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark")}
 function setType(type){if(!types[type])return;currentType=type;el("entryForm").elements.type.value=type;document.querySelectorAll("[data-type]").forEach(function(b){b.classList.toggle("active",b.dataset.type===type)});document.querySelectorAll("[data-field]").forEach(function(f){var name=f.dataset.field;var visible=(type==="running"&&["runDuration","km","hr","rpe","pain"].includes(name))||(type==="lifting"&&["duration","rpe","pain"].includes(name))||(type==="recovery"&&["sleep","sleepQuality","recoveryFeeling","pain"].includes(name));f.classList.toggle("hide",!visible);if(["duration","runDuration","rpe","sleepQuality","recoveryFeeling"].includes(name))f.querySelectorAll("input,select").forEach(function(input){input.disabled=!visible})});el("rpeLabel").textContent=type==="running"?"Wie anstrengend war der Lauf? (0–10)":"Session-RPE (0–10)";el("painLabel").textContent=type==="recovery"?"Leiste/Hüfte: Schmerzen bei den ersten Schritten am Morgen (0–10)":"Schmerz Leiste / Hüfte (0–10)";validateRunDuration();el("liftSection").classList.toggle("hide",type!=="lifting");el("entryForm").elements.title.disabled=type!=="lifting";}
 function today(){el("entryForm").elements.date.value=dateLocal()}
@@ -324,7 +327,7 @@ document.addEventListener("click",function(ev){var b=ev.target.closest("button")
 el("liftList").addEventListener("input",liftChange);el("liftList").addEventListener("change",liftChange);
 el("liftList").addEventListener("click",function(ev){var b=ev.target.closest("button");if(!b)return;if(b.dataset.addset!==undefined){var i=Number(b.dataset.addset);if(exerciseDraft[i]&&exerciseDraft[i].sets.length<30){exerciseDraft[i].sets.push(liftSet(b.dataset.kind));renderLift(i)}}if(b.dataset.delset!==undefined){var i=Number(b.dataset.delset);if(exerciseDraft[i]){exerciseDraft[i].sets.splice(Number(b.dataset.j),1);renderLift(i)}}if(b.dataset.delex!==undefined){exerciseDraft.splice(Number(b.dataset.delex),1);renderLift()}});
 el("addLiftEx").onclick=function(){if(exerciseDraft.length<30){exerciseDraft.push(liftBlank());renderLift(exerciseDraft.length-1)}else el("formStatus").textContent="Maximal 30 Übungen."};
-el("useBaseline").onclick=function(){
+function loadCoreTemplate(){
  if((exerciseDraft.length||editId)&&!confirm("Aktuelle Eingaben durch die Workout-Vorlage ersetzen? Vor dem Speichern bleibt alles unverändert."))return;
  newEntry("lifting");
  var f=el("entryForm").elements;
@@ -333,7 +336,9 @@ el("useBaseline").onclick=function(){
  exerciseDraft=homeWorkoutTemplate();
  renderLift();
  el("formStatus").textContent="6 Übungen als Vorlage geladen. Nichts wird automatisch gespeichert.";
-};
+}
+el("useBaseline").onclick=loadCoreTemplate;
+el("startCoreWorkout").onclick=loadCoreTemplate;
 
 el("entryForm").elements.runDuration.addEventListener("input",validateRunDuration);
 el("entryForm").addEventListener("submit",function(ev){ev.preventDefault();var e=capture();if(!check(e)){el("formStatus").textContent=e.type==="lifting"?"Bitte prüfe Übungsnamen, Sätze und RIR (z. B. 3–4).":"Bitte überprüfe Datum und Eingabewerte.";return}if(editId){var original=entries.find(function(x){return x.id===editId});if(original)e.created=original.created;entries=entries.map(function(x){return x.id===editId?e:x})}else entries.push(e);if(entries.length>5000){entries=entries.sort(older).slice(0,5000)}if(save()){newEntry("running");view();el("formStatus").textContent="Eintrag gespeichert ✓";showPage("history")}});
