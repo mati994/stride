@@ -168,12 +168,12 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;le
 <header class="topbar"><div class="forward-mobile-brand"><strong>HTL<i aria-hidden="true"></i></strong><small>HYBRID TRAINING LAB</small></div><div class="breadcrumb">HTL <span style="color:var(--tertiary)">/</span> <strong id="breadcrumb">Dashboard</strong></div><div class="top-actions"><span class="pill" style="padding:7px 10px">VORSCHAU</span><button class="theme-button" type="button" id="themeToggle" aria-label="Farbschema wechseln"><svg id="themeIcon" width="16" height="16" fill="none" stroke="currentColor"><use href="#i-moon"/></svg><span id="themeText">Dark Mode</span></button></div></header>
 <section class="page active" id="page-dashboard">
 <div class="pagehead"><div><div class="overline" style="color:var(--accent)">HUMAN PERFORMANCE / DEIN TRAININGSLABOR</div><h1>Training, das dich<br><em>weiterbringt.</em></h1><p class="sub">Laufen. Kraft. Stabilität. Dein Training an einem Ort – klar, individuell und langfristig.</p></div><span class="pill"><span class="dot"></span> Hybrid Training Lab</span></div>
-<section class="forward-feature" aria-label="Letztes Workout">
-<div class="forward-feature-copy"><span class="forward-eyebrow"><span class="forward-spark"></span> DEINE LETZTE SESSION · 21.11.2026</span>
+<section class="forward-feature" aria-label="Workout-Konzept">
+<div class="forward-feature-copy"><span class="forward-eyebrow"><span class="forward-spark"></span> DEIN WORKOUT-BEISPIEL</span>
 <h2>Core &amp;<br>Laufstabilität<span class="forward-stop">.</span></h2>
-<p>Volle Einheit geschafft. Alle Wiederholungen passend, keine Beschwerden – moderat belastet.</p>
-<div class="forward-feature-meta"><span>◎ Körpergewicht</span><span>✓ Abgeschlossen</span><span>◌ Core &amp; Stabilität</span></div></div>
-<div class="forward-feature-actions"><button class="forward-open" data-page="history" type="button" aria-label="Trainingshistorie öffnen">↗</button><small>TRAINING ANSEHEN</small></div>
+<p>Laufen, Kraft und Stabilität – klar geplant, nachvollziehbar dokumentiert und bereit für deinen nächsten Trainingsimpuls.</p>
+<div class="forward-feature-meta"><span>◎ Körpergewicht</span><span>◇ 6 Übungen</span><span>◌ Core &amp; Stabilität</span></div></div>
+<div class="forward-feature-actions"><button class="forward-open" data-page="history" type="button" aria-label="Trainingshistorie öffnen">↗</button><small>HISTORIE ANSEHEN</small></div>
 </section>
 <div class="grid metrics">
 <div class="card metric-card"><div class="metric-top"><span class="metric-label">Laufumfang · 7 Tage</span><span class="iconbox run"><svg fill="none" stroke="currentColor"><use href="#i-run"/></svg></span></div><div><div class="kpi" id="kpiKm">0,0 <small>km</small></div><div class="metric-foot" id="kpiRunCount">0 Läufe</div></div></div>
@@ -341,33 +341,7 @@ if(save()){view();el("settingsStatus").textContent=number+" neue Einträge impor
 };
 el("eraseData").onclick=function(){if(confirm("Wirklich alle lokalen HTL-Testeinträge löschen?")&&confirm("Letzte Bestätigung: Ohne Backup sind die Einträge verloren.")){var old=entries;entries=[];if(save()){view();el("settingsStatus").textContent="HTL-Testdaten gelöscht."}else entries=old}};
 
-/* First-visit sample is this user's completed 21 Nov 2026 session; it never overwrites data. */
-function forwardSeed(){
- try {
-  if(localStorage.getItem(KEY)!==null || entries.length) return;
-  function ex(name,mode,count,side,note){
-   var timed=mode==="time";
-   return {id:liftID(),name:name,mode:mode,loadMode:"bodyweight",sideMode:side||"each",note:note||"",
-    sets:[0,1].map(function(){return {kind:"work",weight:null,reps:timed?null:count,seconds:timed?count:null,rir:"",note:""}})};
-  }
-  entries=[{
-   id:"htl-forward-home-2026-11-21",created:"2026-11-21T14:59:00+01:00",date:"2026-11-21",type:"lifting",
-   title:"Core & Laufstabilität · Zuhause",minutes:null,km:null,hr:null,rpe:null,sleep:null,pain:0,sleepQuality:null,recoveryFeeling:null,
-   notes:"Warm-up absolviert; alle Wiederholungen nach Plan. Belastung moderat, eher unterschwellig. Rumpf passend gefordert, keine Beschwerden an Leiste oder Gelenken. Dauer und exakter RPE nicht gemessen.",
-   exercises:[
-    ex("Reverse Lunges","reps",8,"each","Schmerzfrei und kontrolliert."),
-    ex("Standwaage","reps",6,"each","Balance und Hüftkontrolle."),
-    ex("Einbeiniges Wadenheben","reps",10,"each","Kontrollierte Ausführung."),
-    ex("Dead Bug","reps",8,"each","Rumpfstabilität."),
-    ex("Seitstütz","time",25,"each","Vorgabe 25–30 Sekunden je Seite; exakte Dauer nicht erfasst."),
-    ex("Glute Bridge March","reps",8,"each","Becken stabil.")
-   ]
-  }];
-  save();
- } catch(e){console.warn("Startprotokoll konnte nicht übernommen werden",e);}
-}
-
-var theme="light";try{theme=localStorage.getItem(THEMEKEY)||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light")}catch(e){}setTheme(theme);localRead();forwardSeed();today();setType("running");view();showPage("dashboard");
+var theme="light";try{theme=localStorage.getItem(THEMEKEY)||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light")}catch(e){}setTheme(theme);localRead();today();setType("running");view();showPage("dashboard");
 })();
 </script>
 </body></html>
